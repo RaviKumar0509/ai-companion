@@ -40,14 +40,19 @@ export const errorHandler: ErrorRequestHandler = (
       error.message,
     );
 
-    res.status(error.statusCode).json({
-      success: false,
-      error: {
-        code: error.code,
-        message: error.message,
-      },
-      requestId,
-    });
+res.status(error.statusCode).json({
+  success: false,
+  error: {
+    code: error.code,
+    message: error.message,
+    ...(error.details
+      ? {
+          details: error.details,
+        }
+      : {}),
+  },
+  requestId,
+});
 
     return;
   }

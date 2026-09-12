@@ -28,8 +28,19 @@ import {
   requestLoggingMiddleware,
 } from "./shared/middleware/request-logging.middleware.js";
 
+import authRoutes from "./modules/auth/routes/auth.routes.js";
+import identityRoutes from "./modules/identity/routes/identity.routes.js";
+import {
+  env,
+} from "./config/env.js";
+
 export function createApp(): Express {
   const app = express();
+
+  app.set(
+  "trust proxy",
+  env.TRUST_PROXY,
+);
 
   /*
    * --------------------------------------------------
@@ -105,6 +116,13 @@ export function createApp(): Express {
       requestId: res.locals.requestId,
     });
   });
+
+  app.use(
+  "/api/v1/auth",
+  authRoutes,
+);
+
+app.use("/api/v1/identity", identityRoutes);
 
   /*
    * --------------------------------------------------

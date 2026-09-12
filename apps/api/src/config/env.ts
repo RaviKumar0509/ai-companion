@@ -7,15 +7,21 @@ const envSchema = z.object({
     .enum(["development", "test", "production"])
     .default("development"),
 
-  PORT: z.coerce
-    .number()
-    .int()
-    .positive()
-    .default(4000),
+PORT: z.coerce
+  .number()
+  .int()
+  .positive()
+  .default(4000),
 
-  WEB_APP_URL: z
-    .string()
-    .url(),
+TRUST_PROXY: z.coerce
+  .number()
+  .int()
+  .nonnegative()
+  .default(0),
+
+WEB_APP_URL: z
+  .string()
+  .url(),
 
   MONGODB_USERNAME: z
     .string()
@@ -32,6 +38,10 @@ const envSchema = z.object({
   MONGODB_DATABASE: z
     .string()
     .min(1),
+  
+   JWT_ACCESS_SECRET: z
+    .string()
+    .min(32, "JWT_ACCESS_SECRET must contain at least 32 characters"),
 });
 
 const result = envSchema.safeParse(

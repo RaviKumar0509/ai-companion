@@ -13,3 +13,11 @@ export {
 export {
   UnauthorizedError,
 } from "./UnauthorizedError.js";
+
+export {
+  ValidationError,
+} from "./ValidationError.js";
+
+export {
+  InvalidCredentialsError,
+} from "./InvalidCredentialsError.js";
