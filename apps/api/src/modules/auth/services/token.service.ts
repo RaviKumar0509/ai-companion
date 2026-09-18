@@ -4,10 +4,15 @@ import {
 } from "node:crypto";
 
 import {
+  errors as joseErrors,
   SignJWT,
   jwtVerify,
   type JWTPayload,
 } from "jose";
+
+import {
+  UnauthorizedError,
+} from "../../../shared/errors/index.js";
 
 import { env } from "../../../config/env.js";
 
@@ -130,20 +135,36 @@ export async function verifyAccessToken(
   const secret =
     getAccessTokenSecret();
 
-  const { payload } =
-    await jwtVerify(
-      accessToken,
-      secret,
-      {
-        algorithms: [
-          AUTH_CONSTANTS.JWT.ALGORITHM,
-        ],
-        issuer:
-          AUTH_CONSTANTS.JWT.ISSUER,
-        audience:
-          AUTH_CONSTANTS.JWT.AUDIENCE,
-      },
-    );
+  try {
+    const { payload } =
+      await jwtVerify(
+        accessToken,
+        secret,
+        {
+          algorithms: [
+            AUTH_CONSTANTS.JWT.ALGORITHM,
+          ],
+          issuer:
+            AUTH_CONSTANTS.JWT.ISSUER,
+          audience:
+            AUTH_CONSTANTS.JWT.AUDIENCE,
+        },
+      );
 
-  return payload;
+    return payload;
+  } catch (error: unknown) {
+    if (error instanceof joseErrors.JWTExpired) {
+      throw new UnauthorizedError(
+        "Authentication token has expired.",
+      );
+    }
+
+    if (error instanceof joseErrors.JOSEError) {
+      throw new UnauthorizedError(
+        "Invalid authentication token.",
+      );
+    }
+
+    throw error;
+  }
 }

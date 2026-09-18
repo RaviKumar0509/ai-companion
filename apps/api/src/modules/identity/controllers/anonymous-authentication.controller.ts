@@ -1,12 +1,9 @@
 import type { RequestHandler } from "express";
 
-import type {
-  AnonymousAuthenticationInput,
-} from "../schemas/identity.schemas.js";
+import type { AnonymousAuthenticationInput } from "../schemas/identity.schemas.js";
 
-import {
-  authenticateAnonymousIdentity,
-} from "../services/anonymous-identity.service.js";
+import { authenticateAnonymousIdentity } from "../services/anonymous-identity.service.js";
+import { generateAnonymousAccessToken } from "../services/anonymous-token.service.js";
 
 import { UnauthorizedError } from "../../../shared/errors/index.js";
 
@@ -26,11 +23,16 @@ export const authenticateAnonymousIdentityController: RequestHandler =
         );
       }
 
+      const accessToken = await generateAnonymousAccessToken(
+        identity.anonymousId,
+      );
+
       res.status(200).json({
         success: true,
         message: "Anonymous identity authenticated successfully.",
         data: {
           anonymousId: identity.anonymousId,
+          accessToken,
           expiresAt: identity.expiresAt,
         },
         requestId: res.locals.requestId,

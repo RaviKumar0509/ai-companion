@@ -1,6 +1,5 @@
-import {
-  env,
-} from "../../config/env.js";
+import { env } from "../../config/env.js";
+import { sendMail } from "./mail/mail.client.js";
 
 interface EmailVerificationNotificationInput {
   email: string;
@@ -11,25 +10,42 @@ interface EmailVerificationNotificationInput {
 export async function sendEmailVerificationNotification(
   input: EmailVerificationNotificationInput,
 ): Promise<void> {
-  if (env.NODE_ENV === "development") {
-    const verificationUrl =
-      `${env.WEB_APP_URL}/verify-email?token=${encodeURIComponent(
-        input.verificationToken,
-      )}`;
+  const verificationUrl =
+    `${env.WEB_APP_URL}/verify-email?token=${encodeURIComponent(
+      input.verificationToken,
+    )}`;
 
-    console.info(
-      "Email verification notification prepared.",
-      {
-        recipient: input.email,
-        verificationUrl,
-        expiresAt: input.expiresAt.toISOString(),
-      },
-    );
+  await sendMail({
+    to: input.email,
+    subject: "Verify your AI Companion email address",
+    text: [
+      "Please verify your email address for your AI Companion account.",
+      "",
+      `Verify your email: ${verificationUrl}`,
+      "",
+      `This link expires at ${input.expiresAt.toISOString()}.`,
+      "",
+      "If you did not create this account, you can safely ignore this email.",
+    ].join("\n"),
+    html: `
+      <p>
+        Please verify your email address for your AI Companion account.
+      </p>
 
-    return;
-  }
+      <p>
+        <a href="${verificationUrl}">
+          Verify your email address
+        </a>
+      </p>
 
-  throw new Error(
-    "Email verification notification provider is not configured.",
-  );
+      <p>
+        This link expires at
+        <strong>${input.expiresAt.toISOString()}</strong>.
+      </p>
+
+      <p>
+        If you did not create this account, you can safely ignore this email.
+      </p>
+    `,
+  });
 }

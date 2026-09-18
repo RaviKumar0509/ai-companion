@@ -1,0 +1,4 @@
+export const CASE_CONSTANTS = {
+  MAX_TITLE_LENGTH: 200,
+  MAX_CONCERN_TYPE_LENGTH: 100,
+} as const;

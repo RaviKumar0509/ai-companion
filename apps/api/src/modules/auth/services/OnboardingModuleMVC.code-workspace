@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"name": "OnboardingModuleMVC",
+			"path": "../../../../../../../OnboardingModuleMVC"
+		},
+		{
+			"name": "ai-companion-platform",
+			"path": "../../../../../.."
+		}
+	],
+	"settings": {}
+}

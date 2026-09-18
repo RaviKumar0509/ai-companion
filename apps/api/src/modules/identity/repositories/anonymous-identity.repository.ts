@@ -73,6 +73,27 @@ export async function updateAnonymousIdentityLastSeen(
   return result.modifiedCount === 1;
 }
 
+export async function revokeAnonymousIdentity(
+  anonymousId: string,
+  revokedAt: Date,
+): Promise<boolean> {
+  const result: UpdateResult<AnonymousIdentityDocument> =
+    await getAnonymousIdentityCollection().updateOne(
+      {
+        anonymousId,
+        status: "active",
+      },
+      {
+        $set: {
+          status: "revoked",
+          lastSeenAt: revokedAt,
+        },
+      },
+    );
+
+  return result.modifiedCount === 1;
+}
+
 export async function convertAnonymousIdentity(
   anonymousId: string,
   userId: ObjectId,

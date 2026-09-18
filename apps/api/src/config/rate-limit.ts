@@ -102,6 +102,44 @@ export const resetPasswordRateLimiter =
   },
 });
 
+export const anonymousIdentityCreationRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  handler: (_req, res) => {
+    const requestId = res.locals.requestId ?? "unknown";
+
+    res.status(429).json({
+      success: false,
+      error: {
+        code: "RATE_LIMIT_EXCEEDED",
+        message: "Too many requests. Please try again later.",
+      },
+      requestId,
+    });
+  },
+});
+
+export const anonymousAuthenticationRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  handler: (_req, res) => {
+    const requestId = res.locals.requestId ?? "unknown";
+
+    res.status(429).json({
+      success: false,
+      error: {
+        code: "RATE_LIMIT_EXCEEDED",
+        message: "Too many requests. Please try again later.",
+      },
+      requestId,
+    });
+  },
+});
+
 export const loginRateLimiter =
   rateLimit({
     windowMs: 15 * 60 * 1000,

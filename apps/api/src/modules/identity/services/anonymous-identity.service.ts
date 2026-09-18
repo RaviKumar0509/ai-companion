@@ -18,6 +18,9 @@ import {
 
 import { IDENTITY_CONSTANTS } from "../constants/identity.constants.js";
 import { verifyAnonymousSecret } from "./anonymous-credential.service.js";
+import {
+  revokeAnonymousIdentity,
+} from "../repositories/anonymous-identity.repository.js";
 
 export interface CreatedAnonymousIdentity {
   identity: AnonymousIdentityDocument;
@@ -90,6 +93,17 @@ export async function resolveAnonymousIdentity(
   
 }
 
+export async function revokeAnonymousIdentityForLogout(
+  anonymousId: string,
+): Promise<boolean> {
+  const revokedAt = new Date();
+
+  return revokeAnonymousIdentity(
+    anonymousId,
+    revokedAt,
+  );
+}
+
 export async function authenticateAnonymousIdentity(
   anonymousId: string,
   anonymousSecret: string,
@@ -117,6 +131,8 @@ export async function authenticateAnonymousIdentity(
   if (!validSecret) {
     return null;
   }
+
+  
 
   await updateAnonymousIdentityLastSeen(
     identity.anonymousId,

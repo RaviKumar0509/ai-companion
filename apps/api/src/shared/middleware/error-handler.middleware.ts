@@ -135,15 +135,15 @@ res.status(error.statusCode).json({
   /*
    * Unknown / unexpected errors
    */
-  logger.error(
-    {
-      error,
-      requestId,
-      path: req.originalUrl,
-      method: req.method,
-    },
-    "Unhandled application error",
-  );
+logger.error(
+  {
+    requestId,
+    path: req.path,
+    method: req.method,
+    err: error,
+  },
+  "Unhandled application error",
+);
 
   res.status(500).json({
     success: false,

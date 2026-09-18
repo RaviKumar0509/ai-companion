@@ -30,6 +30,8 @@ import {
 
 import authRoutes from "./modules/auth/routes/auth.routes.js";
 import identityRoutes from "./modules/identity/routes/identity.routes.js";
+import caseRoutes from "./modules/case/routes/case.routes.js";
+import conversationRoutes from "./modules/conversation/routes/conversation.routes.js";
 import {
   env,
 } from "./config/env.js";
@@ -123,6 +125,8 @@ export function createApp(): Express {
 );
 
 app.use("/api/v1/identity", identityRoutes);
+app.use("/api/v1/cases", caseRoutes);
+app.use("/api/v1/conversations", conversationRoutes);
 
   /*
    * --------------------------------------------------

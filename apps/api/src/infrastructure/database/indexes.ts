@@ -6,6 +6,18 @@ import {
   getDatabase,
 } from "./db.js";
 
+import {
+  ANONYMOUS_IDENTITY_INDEXES,
+} from "../../modules/identity/repositories/anonymous-identity.indexes.js";
+
+import {
+  CASE_INDEXES,
+} from "../../modules/case/repositories/case.indexes.js";
+
+import {
+  CONVERSATION_INDEXES,
+} from "../../modules/conversation/repositories/conversation.indexes.js";
+
 export async function ensureIndexes(): Promise<void> {
   const db =
     getDatabase();
@@ -133,7 +145,23 @@ await db
       },
     );
 
+      await db
+    .collection("anonymousIdentities")
+    .createIndexes(
+      ANONYMOUS_IDENTITY_INDEXES,
+    );
+
+    await db
+  .collection("cases")
+  .createIndexes(CASE_INDEXES);
+
+  await db
+  .collection("conversations")
+  .createIndexes(CONVERSATION_INDEXES);
+
   logger.info(
     "STEP 4 SUCCESS → Database indexes verified",
   );
+
+  
 }

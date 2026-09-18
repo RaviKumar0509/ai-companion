@@ -1,0 +1,3 @@
+export const CONVERSATION_CONSTANTS = {
+  MAX_CONVERSATIONS_PER_CASE: 100,
+} as const;

@@ -1,6 +1,5 @@
-import {
-  env,
-} from "../../config/env.js";
+import { env } from "../../config/env.js";
+import { sendMail } from "./mail/mail.client.js";
 
 interface PasswordResetNotificationInput {
   email: string;
@@ -11,20 +10,40 @@ interface PasswordResetNotificationInput {
 export async function sendPasswordResetNotification(
   input: PasswordResetNotificationInput,
 ): Promise<void> {
-if (env.NODE_ENV === "development") {
-  console.info(
-    "Password reset notification prepared.",
-    {
-      recipient: input.email,
-      resetToken: input.resetToken,
-      expiresAt: input.expiresAt.toISOString(),
-    },
-  );
+  const resetUrl =
+    `${env.WEB_APP_URL}/reset-password?token=${encodeURIComponent(
+      input.resetToken,
+    )}`;
 
-  return;
-}
+  await sendMail({
+    to: input.email,
+    subject: "Reset your AI Companion password",
+    text: [
+      "We received a request to reset your AI Companion password.",
+      "",
+      `Reset your password using this link: ${resetUrl}`,
+      "",
+      `This link expires at ${input.expiresAt.toISOString()}.`,
+      "",
+      "If you did not request this, you can safely ignore this email.",
+    ].join("\n"),
+    html: `
+      <p>We received a request to reset your AI Companion password.</p>
 
-  throw new Error(
-    "Password reset notification provider is not configured.",
-  );
+      <p>
+        <a href="${resetUrl}">
+          Reset your password
+        </a>
+      </p>
+
+      <p>
+        This link expires at
+        <strong>${input.expiresAt.toISOString()}</strong>.
+      </p>
+
+      <p>
+        If you did not request this, you can safely ignore this email.
+      </p>
+    `,
+  });
 }

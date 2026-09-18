@@ -1,4 +1,5 @@
 import type {
+  Request,
   RequestHandler,
 } from "express";
 
@@ -53,6 +54,27 @@ export function validateBody(
      * schemas can normalize values.
      */
     req.body = result.data;
+
+    next();
+  };
+}
+
+export function validateQuery<T extends z.ZodType>(
+  schema: T,
+): RequestHandler {
+  return (req, _res, next) => {
+    const result = schema.safeParse(req.query);
+
+    if (!result.success) {
+      next(
+        new ValidationError(
+          "Invalid query parameters.",
+        ),
+      );
+      return;
+    }
+
+    Object.assign(req.query, result.data);
 
     next();
   };

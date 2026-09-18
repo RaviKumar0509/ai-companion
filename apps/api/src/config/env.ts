@@ -42,6 +42,30 @@ WEB_APP_URL: z
    JWT_ACCESS_SECRET: z
     .string()
     .min(32, "JWT_ACCESS_SECRET must contain at least 32 characters"),
+    MAIL_HOST: z
+  .string()
+  .min(1),
+
+MAIL_PORT: z.coerce
+  .number()
+  .int()
+  .positive(),
+
+MAIL_SECURE: z
+  .enum(["true", "false"])
+  .transform((value) => value === "true"),
+
+MAIL_USER: z
+  .string()
+  .email(),
+
+MAIL_PASSWORD: z
+  .string()
+  .min(1),
+
+MAIL_FROM: z
+  .string()
+  .email(),
 });
 
 const result = envSchema.safeParse(
