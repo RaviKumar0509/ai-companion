@@ -10,6 +10,11 @@ import {
 } from "../../case/repositories/case.repository.js";
 
 import {
+  CONVERSATION_CONSTANTS,
+} from "../constants/conversation.constants.js";
+
+import {
+  countConversationsByCaseId,
   createConversation,
   findAnonymousConversationById,
   findUserConversationById,
@@ -36,17 +41,20 @@ export async function createUserConversation(
   const userObjectId = toObjectId(userId);
   const caseObjectId = toObjectId(input.caseId);
 
-const caseDocument = await findCaseById(caseObjectId);
+  const caseDocument = await findCaseById(caseObjectId);
 
-if (
-  !caseDocument ||
-  caseDocument.ownerType !== "user" ||
-  !caseDocument.userId ||
-  caseDocument.userId.toHexString() !== userObjectId.toHexString() ||
-  caseDocument.status !== "active"
-) {
-  throw new NotFoundError("Case not found.");
-}
+  if (
+    !caseDocument ||
+    caseDocument.ownerType !== "user" ||
+    !caseDocument.userId ||
+    caseDocument.userId.toHexString() !==
+      userObjectId.toHexString() ||
+    caseDocument.status !== "active"
+  ) {
+    throw new NotFoundError("Case not found.");
+  }
+
+  await ensureConversationLimitNotExceeded(caseObjectId);
 
   const now = new Date();
 
@@ -69,16 +77,18 @@ export async function createAnonymousConversation(
 ): Promise<ConversationDocument> {
   const caseObjectId = toObjectId(input.caseId);
 
-const caseDocument = await findCaseById(caseObjectId);
+  const caseDocument = await findCaseById(caseObjectId);
 
-if (
-  !caseDocument ||
-  caseDocument.ownerType !== "anonymous" ||
-  caseDocument.anonymousId !== anonymousId ||
-  caseDocument.status !== "active"
-) {
-  throw new NotFoundError("Case not found.");
-}
+  if (
+    !caseDocument ||
+    caseDocument.ownerType !== "anonymous" ||
+    caseDocument.anonymousId !== anonymousId ||
+    caseDocument.status !== "active"
+  ) {
+    throw new NotFoundError("Case not found.");
+  }
+
+  await ensureConversationLimitNotExceeded(caseObjectId);
 
   const now = new Date();
 
@@ -120,10 +130,11 @@ export async function getAnonymousConversation(
 ): Promise<ConversationDocument> {
   const conversationObjectId = toObjectId(conversationId);
 
-  const conversation = await findAnonymousConversationById(
-    conversationObjectId,
-    anonymousId,
-  );
+  const conversation =
+    await findAnonymousConversationById(
+      conversationObjectId,
+      anonymousId,
+    );
 
   if (!conversation) {
     throw new NotFoundError("Conversation not found.");
@@ -146,7 +157,8 @@ export async function listUserConversations(
     !caseDocument ||
     caseDocument.ownerType !== "user" ||
     !caseDocument.userId ||
-    caseDocument.userId.toHexString() !== userObjectId.toHexString()
+    caseDocument.userId.toHexString() !==
+      userObjectId.toHexString()
   ) {
     throw new NotFoundError("Case not found.");
   }
@@ -282,6 +294,22 @@ export async function closeAnonymousConversation(
   }
 
   return updatedConversation;
+}
+
+async function ensureConversationLimitNotExceeded(
+  caseId: ObjectId,
+): Promise<void> {
+  const conversationCount =
+    await countConversationsByCaseId(caseId);
+
+  if (
+    conversationCount >=
+    CONVERSATION_CONSTANTS.MAX_CONVERSATIONS_PER_CASE
+  ) {
+    throw new ValidationError(
+      "The maximum number of conversations for this case has been reached.",
+    );
+  }
 }
 
 function toObjectId(value: string): ObjectId {

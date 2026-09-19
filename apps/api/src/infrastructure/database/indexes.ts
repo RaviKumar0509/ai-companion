@@ -7,6 +7,10 @@ import {
 } from "./db.js";
 
 import {
+  MESSAGE_INDEXES,
+} from "../../modules/message/repositories/message.indexes.js";
+
+import {
   ANONYMOUS_IDENTITY_INDEXES,
 } from "../../modules/identity/repositories/anonymous-identity.indexes.js";
 
@@ -111,6 +115,10 @@ await db
       name: "auth_refresh_tokens_family",
     },
   );
+
+  await db
+  .collection("messages")
+  .createIndexes(MESSAGE_INDEXES);
 
 await db
   .collection("auth_refresh_tokens")

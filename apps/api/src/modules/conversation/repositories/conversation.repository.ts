@@ -98,6 +98,16 @@ export async function listAnonymousConversationsByCaseId(
     .toArray();
 }
 
+
+export async function countConversationsByCaseId(
+  caseId: ObjectId,
+): Promise<number> {
+  return getConversationCollection().countDocuments({
+    caseId,
+  });
+}
+
+
 export async function updateConversation(
   conversationId: ObjectId,
   updates: Partial<ConversationDocument>,
@@ -108,6 +118,25 @@ export async function updateConversation(
     },
     {
       $set: updates,
+    },
+  );
+
+  return result.modifiedCount === 1;
+}
+
+export async function updateConversationLastMessageAt(
+  conversationId: ObjectId,
+  lastMessageAt: Date,
+): Promise<boolean> {
+  const result = await getConversationCollection().updateOne(
+    {
+      _id: conversationId,
+    },
+    {
+      $set: {
+        lastMessageAt,
+        updatedAt: lastMessageAt,
+      },
     },
   );
 
