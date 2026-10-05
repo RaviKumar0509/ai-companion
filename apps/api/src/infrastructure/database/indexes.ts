@@ -22,6 +22,10 @@ import {
   CONVERSATION_INDEXES,
 } from "../../modules/conversation/repositories/conversation.indexes.js";
 
+import {
+  SAFETY_EVENT_INDEXES,
+} from "../../modules/safety/repositories/safety.indexes.js";
+
 export async function ensureIndexes(): Promise<void> {
   const db =
     getDatabase();
@@ -166,6 +170,10 @@ await db
   await db
   .collection("conversations")
   .createIndexes(CONVERSATION_INDEXES);
+
+  await db
+  .collection("safety_events")
+  .createIndexes([...SAFETY_EVENT_INDEXES]);
 
   logger.info(
     "STEP 4 SUCCESS → Database indexes verified",

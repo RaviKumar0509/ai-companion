@@ -8,6 +8,7 @@ import {
 import {
   findCaseById,
 } from "../../case/repositories/case.repository.js";
+
 import {
   updateConversationLastMessageAt,
 } from "../../conversation/repositories/conversation.repository.js";
@@ -20,6 +21,22 @@ import {
 import {
   CONVERSATION_STATUS,
 } from "../../conversation/types/conversation.types.js";
+
+import {
+  assessSafety,
+} from "../../safety/services/safety.service.js";
+
+import {
+  persistSafetyEvent,
+} from "../../safety/services/safety-event.service.js";
+
+import {
+  orchestrateAI,
+} from "../../ai/services/ai-orchestrator.service.js";
+
+import type {
+  AIMessage,
+} from "../../../infrastructure/ai/ai-provider.types.js";
 
 import {
   createMessage,
@@ -37,11 +54,18 @@ import type {
   ListMessagesQuery,
 } from "../schemas/message.schemas.js";
 
+import { MESSAGE_CONSTANTS } from "../constants/message.constants.js";
+
+import { buildAIMessageContext } from "./message-context.service.js";
+
+
+
 export async function createUserMessage(
   userId: string,
   input: CreateMessageInput,
 ): Promise<MessageDocument> {
   const userObjectId = toObjectId(userId);
+
   const conversationObjectId = toObjectId(
     input.conversationId,
   );
@@ -78,25 +102,119 @@ export async function createUserMessage(
     );
   }
 
-  const now = new Date();
+  /*
+   * --------------------------------------------------
+   * SAFETY CHECK
+   * --------------------------------------------------
+   *
+   * Deterministic safety assessment happens before
+   * the message is sent to the AI provider.
+   */
+  const safetyResult = assessSafety(
+    input.content,
+  );
 
-  const message: MessageDocument = {
+  await persistSafetyEvent({
+  conversationId: conversationObjectId,
+  caseId: conversation.caseId,
+  ownerType: "user",
+  userId: userObjectId,
+  safetyResult,
+});
+
+  /*
+   * --------------------------------------------------
+   * USER MESSAGE
+   * --------------------------------------------------
+   */
+
+  const userMessageTime = new Date();
+
+  const userMessage: MessageDocument = {
     conversationId: conversationObjectId,
     senderType: MESSAGE_SENDER_TYPE.USER,
     contentType: MESSAGE_CONTENT_TYPE.TEXT,
     content: input.content,
-    createdAt: now,
-    updatedAt: now,
+    createdAt: userMessageTime,
+    updatedAt: userMessageTime,
   };
 
- const createdMessage = await createMessage(message);
+  const createdUserMessage =
+    await createMessage(userMessage);
 
-await updateConversationLastMessageAt(
+  await updateConversationLastMessageAt(
+    conversationObjectId,
+    userMessageTime,
+  );
+
+  /*
+   * --------------------------------------------------
+   * CONVERSATION CONTEXT
+   * --------------------------------------------------
+   */
+
+const recentMessages = await listMessagesByConversationId(
   conversationObjectId,
-  now,
+  MESSAGE_CONSTANTS.MAX_AI_CONTEXT_MESSAGES,
+  0,
 );
 
-return createdMessage;
+const contextMessages = buildAIMessageContext(
+  recentMessages,
+);
+
+const aiMessages = toAIMessages(
+  contextMessages,
+);
+
+  /*
+   * --------------------------------------------------
+   * AI ORCHESTRATION
+   * --------------------------------------------------
+   *
+   * The orchestrator decides whether the request
+   * should go to Gemini, use a fallback, or follow
+   * the crisis path.
+   */
+  const aiResponse = await orchestrateAI({
+    messages: aiMessages,
+    safetyResult,
+  });
+
+  /*
+   * --------------------------------------------------
+   * ASSISTANT MESSAGE
+   * --------------------------------------------------
+   */
+
+  const assistantMessageTime = new Date();
+
+  const assistantMessage: MessageDocument = {
+    conversationId: conversationObjectId,
+    senderType: MESSAGE_SENDER_TYPE.ASSISTANT,
+    contentType: MESSAGE_CONTENT_TYPE.TEXT,
+    content: aiResponse.content,
+    createdAt: assistantMessageTime,
+    updatedAt: assistantMessageTime,
+  };
+
+  const createdAssistantMessage =
+    await createMessage(assistantMessage);
+
+  await updateConversationLastMessageAt(
+    conversationObjectId,
+    assistantMessageTime,
+  );
+
+  /*
+   * --------------------------------------------------
+   * RETURN ASSISTANT MESSAGE
+   * --------------------------------------------------
+   *
+   * The existing controller expects a MessageDocument,
+   * so we return the assistant message here.
+   */
+  return createdAssistantMessage;
 }
 
 export async function createAnonymousMessage(
@@ -137,25 +255,102 @@ export async function createAnonymousMessage(
     );
   }
 
-  const now = new Date();
+  /*
+   * --------------------------------------------------
+   * SAFETY CHECK
+   * --------------------------------------------------
+   */
 
-  const message: MessageDocument = {
+  const safetyResult = assessSafety(
+    input.content,
+  );
+
+  await persistSafetyEvent({
+  conversationId: conversationObjectId,
+  caseId: conversation.caseId,
+  ownerType: "anonymous",
+  anonymousId,
+  safetyResult,
+});
+
+  /*
+   * --------------------------------------------------
+   * USER MESSAGE
+   * --------------------------------------------------
+   */
+
+  const userMessageTime = new Date();
+
+  const userMessage: MessageDocument = {
     conversationId: conversationObjectId,
     senderType: MESSAGE_SENDER_TYPE.USER,
     contentType: MESSAGE_CONTENT_TYPE.TEXT,
     content: input.content,
-    createdAt: now,
-    updatedAt: now,
+    createdAt: userMessageTime,
+    updatedAt: userMessageTime,
   };
 
-  const createdMessage = await createMessage(message);
+  await createMessage(userMessage);
 
-await updateConversationLastMessageAt(
+  await updateConversationLastMessageAt(
+    conversationObjectId,
+    userMessageTime,
+  );
+
+  /*
+   * --------------------------------------------------
+   * CONVERSATION CONTEXT
+   * --------------------------------------------------
+   */
+
+const recentMessages = await listMessagesByConversationId(
   conversationObjectId,
-  now,
+  MESSAGE_CONSTANTS.MAX_AI_CONTEXT_MESSAGES,
+  0,
 );
 
-return createdMessage;
+const contextMessages = buildAIMessageContext(recentMessages);
+
+const aiMessages = toAIMessages(
+  contextMessages,
+);
+  /*
+   * --------------------------------------------------
+   * AI ORCHESTRATION
+   * --------------------------------------------------
+   */
+
+  const aiResponse = await orchestrateAI({
+    messages: aiMessages,
+    safetyResult,
+  });
+
+  /*
+   * --------------------------------------------------
+   * ASSISTANT MESSAGE
+   * --------------------------------------------------
+   */
+
+  const assistantMessageTime = new Date();
+
+  const assistantMessage: MessageDocument = {
+    conversationId: conversationObjectId,
+    senderType: MESSAGE_SENDER_TYPE.ASSISTANT,
+    contentType: MESSAGE_CONTENT_TYPE.TEXT,
+    content: aiResponse.content,
+    createdAt: assistantMessageTime,
+    updatedAt: assistantMessageTime,
+  };
+
+  const createdAssistantMessage =
+    await createMessage(assistantMessage);
+
+  await updateConversationLastMessageAt(
+    conversationObjectId,
+    assistantMessageTime,
+  );
+
+  return createdAssistantMessage;
 }
 
 export async function listUserMessages(
@@ -164,6 +359,7 @@ export async function listUserMessages(
   query: ListMessagesQuery,
 ): Promise<MessageDocument[]> {
   const userObjectId = toObjectId(userId);
+
   const conversationObjectId = toObjectId(
     conversationId,
   );
@@ -218,14 +414,55 @@ export async function listAnonymousMessages(
 function validateConversationIsActive(
   status: string,
 ): void {
-  if (status !== CONVERSATION_STATUS.ACTIVE) {
+  if (
+    status !== CONVERSATION_STATUS.ACTIVE
+  ) {
     throw new ValidationError(
       "Messages cannot be added to a closed conversation.",
     );
   }
 }
 
-function toObjectId(value: string): ObjectId {
+function toAIMessages(
+  messages: MessageDocument[],
+): AIMessage[] {
+  return messages
+    .filter(
+      (message) =>
+        message.contentType ===
+        MESSAGE_CONTENT_TYPE.TEXT,
+    )
+    .map((message) => {
+      if (
+        message.senderType ===
+        MESSAGE_SENDER_TYPE.USER
+      ) {
+        return {
+          role: "user",
+          content: message.content,
+        } satisfies AIMessage;
+      }
+
+      if (
+        message.senderType ===
+        MESSAGE_SENDER_TYPE.ASSISTANT
+      ) {
+        return {
+          role: "assistant",
+          content: message.content,
+        } satisfies AIMessage;
+      }
+
+      return {
+        role: "system",
+        content: message.content,
+      } satisfies AIMessage;
+    });
+}
+
+function toObjectId(
+  value: string,
+): ObjectId {
   if (!ObjectId.isValid(value)) {
     throw new ValidationError(
       "Invalid MongoDB ObjectId.",

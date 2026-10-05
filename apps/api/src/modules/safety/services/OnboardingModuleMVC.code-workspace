@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"name": "OnboardingModuleMVC",
+			"path": "../../../../../../../OnboardingModuleMVC"
+		},
+		{
+			"path": "../../../../../.."
+		}
+	],
+	"settings": {}
+}

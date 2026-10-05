@@ -23,6 +23,10 @@ WEB_APP_URL: z
   .string()
   .url(),
 
+AI_PROVIDER: z.string().min(1),
+AI_MODEL: z.string().min(1),
+GEMINI_API_KEY: z.string().min(1),
+
   MONGODB_USERNAME: z
     .string()
     .min(1),

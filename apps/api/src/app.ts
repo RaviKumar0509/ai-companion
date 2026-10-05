@@ -33,6 +33,8 @@ import identityRoutes from "./modules/identity/routes/identity.routes.js";
 import caseRoutes from "./modules/case/routes/case.routes.js";
 import conversationRoutes from "./modules/conversation/routes/conversation.routes.js";
 import messageRoutes from "./modules/message/routes/message.routes.js";
+import { safetyRouter } from "./modules/safety/routes/safety.routes.js";
+
 import {
   env,
 } from "./config/env.js";
@@ -129,6 +131,7 @@ app.use("/api/v1/identity", identityRoutes);
 app.use("/api/v1/cases", caseRoutes);
 app.use("/api/v1/conversations", conversationRoutes);
 app.use(  "/api/v1/messages",  messageRoutes,);
+app.use("/api/v1/safety", safetyRouter);
 
   /*
    * --------------------------------------------------

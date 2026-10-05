@@ -45,16 +45,14 @@ export async function listMessagesByConversationId(
   limit: number,
   skip: number,
 ): Promise<MessageDocument[]> {
-  return getMessageCollection()
-    .find({
-      conversationId,
-    })
-    .sort({
-      createdAt: 1,
-    })
+  const messages = await getMessageCollection()
+    .find({ conversationId })
+    .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit)
     .toArray();
+
+  return messages.reverse();
 }
 
 export async function countMessagesByConversationId(

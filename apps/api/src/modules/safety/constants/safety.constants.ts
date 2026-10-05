@@ -1,0 +1,10 @@
+export const SAFETY_CONSTANTS = {
+  MAX_TEXT_LENGTH: 10_000,
+
+  EVENT_SOURCE: {
+    MESSAGE: "message",
+  },
+
+  DEFAULT_ACTIVE_EVENT_LIMIT: 50,
+  MAX_ACTIVE_EVENT_LIMIT: 100,
+} as const;
