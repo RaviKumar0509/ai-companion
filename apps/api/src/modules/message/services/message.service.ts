@@ -58,6 +58,9 @@ import { MESSAGE_CONSTANTS } from "../constants/message.constants.js";
 
 import { buildAIMessageContext } from "./message-context.service.js";
 
+import { buildCaseContextForAI } from "../../case/services/case-context-builder.service.js";
+import { getCaseContext } from "../../case/services/case-context.service.js";
+
 
 
 export async function createUserMessage(
@@ -167,6 +170,14 @@ const aiMessages = toAIMessages(
   contextMessages,
 );
 
+const caseContext = await getCaseContext(
+  conversation.caseId,
+);
+
+const aiCaseContext = buildCaseContextForAI(
+  caseContext,
+);
+
   /*
    * --------------------------------------------------
    * AI ORCHESTRATION
@@ -176,10 +187,13 @@ const aiMessages = toAIMessages(
    * should go to Gemini, use a fallback, or follow
    * the crisis path.
    */
-  const aiResponse = await orchestrateAI({
-    messages: aiMessages,
-    safetyResult,
-  });
+const aiResponse = await orchestrateAI({
+  messages: aiMessages,
+  safetyResult,
+  ...(aiCaseContext
+    ? { caseContext: aiCaseContext }
+    : {}),
+});
 
   /*
    * --------------------------------------------------
@@ -314,17 +328,27 @@ const contextMessages = buildAIMessageContext(recentMessages);
 const aiMessages = toAIMessages(
   contextMessages,
 );
+
+const caseContext = await getCaseContext(
+  conversation.caseId,
+);
+
+const aiCaseContext = buildCaseContextForAI(
+  caseContext,
+);
   /*
    * --------------------------------------------------
    * AI ORCHESTRATION
    * --------------------------------------------------
    */
 
-  const aiResponse = await orchestrateAI({
-    messages: aiMessages,
-    safetyResult,
-  });
-
+const aiResponse = await orchestrateAI({
+  messages: aiMessages,
+  safetyResult,
+  ...(aiCaseContext
+    ? { caseContext: aiCaseContext }
+    : {}),
+});
   /*
    * --------------------------------------------------
    * ASSISTANT MESSAGE

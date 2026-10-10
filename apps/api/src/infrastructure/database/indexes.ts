@@ -26,6 +26,8 @@ import {
   SAFETY_EVENT_INDEXES,
 } from "../../modules/safety/repositories/safety.indexes.js";
 
+import { CASE_CONTEXT_INDEXES } from "../../modules/case/repositories/case-context.indexes.js";
+
 export async function ensureIndexes(): Promise<void> {
   const db =
     getDatabase();
@@ -174,6 +176,10 @@ await db
   await db
   .collection("safety_events")
   .createIndexes([...SAFETY_EVENT_INDEXES]);
+
+  await getDatabase()
+  .collection("case_contexts")
+  .createIndexes([...CASE_CONTEXT_INDEXES]);
 
   logger.info(
     "STEP 4 SUCCESS → Database indexes verified",

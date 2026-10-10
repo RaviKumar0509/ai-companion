@@ -10,6 +10,7 @@ import type {
 export interface AIOrchestrationInput {
   messages: AIMessage[];
   safetyResult: SafetyResult;
+  caseContext?: AIMessage;
 }
 
 export interface AIOrchestrationResult {

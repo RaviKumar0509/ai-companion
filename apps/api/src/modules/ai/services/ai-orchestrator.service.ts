@@ -30,15 +30,18 @@ export async function orchestrateAI(
   }
 
   try {
-    const response = await aiGateway.generateCompletion({
-      messages: [
-        {
-          role: "system",
-          content: buildSystemPrompt(),
-        },
-        ...input.messages,
-      ],
-    });
+const aiMessages = [
+  {
+    role: "system" as const,
+    content: buildSystemPrompt(),
+  },
+  ...(input.caseContext ? [input.caseContext] : []),
+  ...input.messages,
+];
+
+const response = await aiGateway.generateCompletion({
+  messages: aiMessages,
+});
 
     const outputSafety = assessOutputSafety(response.content);
 
