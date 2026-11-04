@@ -3,7 +3,7 @@ export const AUTH_CONSTANTS = {
     ISSUER: "ai-companion-platform",
     AUDIENCE: "ai-companion-api",
     ALGORITHM: "HS256" as const,
-    ACCESS_TOKEN_EXPIRES_IN: "15m",
+    ACCESS_TOKEN_EXPIRES_IN: "150m",
     REFRESH_TOKEN_EXPIRES_IN_DAYS: 30,
   },
   EMAIL_VERIFICATION: {

@@ -30,6 +30,7 @@ export async function updateCaseContext(
   caseId: ObjectId,
   updates: UpdateCaseContextInput,
   updatedAt: Date,
+  status?: CaseContextDocument["status"],
 ): Promise<boolean> {
   const sanitizedUpdates = Object.fromEntries(
     Object.entries(updates).filter(([, value]) => value !== undefined),
@@ -40,6 +41,7 @@ export async function updateCaseContext(
     {
       $set: {
         ...sanitizedUpdates,
+        ...(status ? { status } : {}),
         updatedAt,
       },
     },

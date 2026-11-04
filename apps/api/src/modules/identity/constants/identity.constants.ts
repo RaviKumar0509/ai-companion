@@ -6,7 +6,7 @@ export const IDENTITY_CONSTANTS = {
       ISSUER: "ai-companion-platform",
       AUDIENCE: "ai-companion-anonymous",
       ALGORITHM: "HS256" as const,
-      ACCESS_TOKEN_EXPIRES_IN: "15m",
+      ACCESS_TOKEN_EXPIRES_IN: "150m",
     },
   },
 } as const;

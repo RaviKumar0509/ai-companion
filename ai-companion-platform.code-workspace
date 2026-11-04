@@ -1,0 +1,21 @@
+{
+	"folders": [
+		{
+			"name": "ai-companion-platform",
+			"path": "."
+		},
+		{
+			"name": "OnboardingModuleMVC",
+			"path": "../OnboardingModuleMVC"
+		},
+		{
+			"name": "MES_PROJECT",
+			"path": "../../../../../xampp_mes/htdocs/MES-FOLDER_18JAN2025/MES-FOLDER/MES_PROJECT"
+		},
+		{
+			"name": "JHAISHNA E COMMERCE PLATFORM",
+			"path": "../JHAISHNA E COMMERCE PLATFORM"
+		}
+	],
+	"settings": {}
+}

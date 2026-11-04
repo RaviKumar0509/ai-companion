@@ -6,8 +6,24 @@ import {
 } from "../../../shared/errors/index.js";
 
 import {
+  logger,
+} from "../../../infrastructure/logger/logger.js";
+
+import {
   findCaseById,
 } from "../../case/repositories/case.repository.js";
+
+import {
+  buildCaseContextForAI,
+} from "../../case/services/case-context-builder.service.js";
+
+import {
+  getCaseContext,
+} from "../../case/services/case-context.service.js";
+
+import {
+  extractAndUpdateCaseContext,
+} from "../../case/services/case-context-extraction.service.js";
 
 import {
   updateConversationLastMessageAt,
@@ -54,14 +70,58 @@ import type {
   ListMessagesQuery,
 } from "../schemas/message.schemas.js";
 
-import { MESSAGE_CONSTANTS } from "../constants/message.constants.js";
+import {
+  MESSAGE_CONSTANTS,
+} from "../constants/message.constants.js";
 
-import { buildAIMessageContext } from "./message-context.service.js";
+import {
+  buildAIMessageContext,
+} from "./message-context.service.js";
 
-import { buildCaseContextForAI } from "../../case/services/case-context-builder.service.js";
-import { getCaseContext } from "../../case/services/case-context.service.js";
+/**
+ * These provider labels indicate that the assistant did not return a normal
+ * AI-generated conversational answer. Do not extract recovery context from
+ * a crisis response, an infrastructure fallback, or an output-safety reply.
+ */
+const NON_EXTRACTABLE_AI_PROVIDERS = new Set([
+  "safety",
+  "fallback",
+  "output-safety",
+]);
 
+/**
+ * Case-context extraction is secondary to the main conversation response.
+ * Extraction errors are contained here so they cannot turn a successfully
+ * persisted assistant message into a failed chat request.
+ *
+ * Note: this currently awaits the extraction call. A durable background
+ * queue with retries and structured failure logging is a production follow-up.
+ */
+async function updateCaseContextSafely(
+  caseId: ObjectId,
+  messages: AIMessage[],
+  responseProvider: string,
+): Promise<void> {
+  if (NON_EXTRACTABLE_AI_PROVIDERS.has(responseProvider)) {
+    return;
+  }
 
+  try {
+    await extractAndUpdateCaseContext(caseId, messages);
+  } catch (error) {
+    logger.error(
+      {
+        errorName:
+          error instanceof Error
+            ? error.name
+            : "UnknownError",
+        caseId: caseId.toHexString(),
+        operation: "extract-and-update-case-context",
+      },
+      "Case context extraction failed; chat response will continue",
+    );
+  }
+}
 
 export async function createUserMessage(
   userId: string,
@@ -118,12 +178,12 @@ export async function createUserMessage(
   );
 
   await persistSafetyEvent({
-  conversationId: conversationObjectId,
-  caseId: conversation.caseId,
-  ownerType: "user",
-  userId: userObjectId,
-  safetyResult,
-});
+    conversationId: conversationObjectId,
+    caseId: conversation.caseId,
+    ownerType: "user",
+    userId: userObjectId,
+    safetyResult,
+  });
 
   /*
    * --------------------------------------------------
@@ -156,27 +216,27 @@ export async function createUserMessage(
    * --------------------------------------------------
    */
 
-const recentMessages = await listMessagesByConversationId(
-  conversationObjectId,
-  MESSAGE_CONSTANTS.MAX_AI_CONTEXT_MESSAGES,
-  0,
-);
+  const recentMessages = await listMessagesByConversationId(
+    conversationObjectId,
+    MESSAGE_CONSTANTS.MAX_AI_CONTEXT_MESSAGES,
+    0,
+  );
 
-const contextMessages = buildAIMessageContext(
-  recentMessages,
-);
+  const contextMessages = buildAIMessageContext(
+    recentMessages,
+  );
 
-const aiMessages = toAIMessages(
-  contextMessages,
-);
+  const aiMessages = toAIMessages(
+    contextMessages,
+  );
 
-const caseContext = await getCaseContext(
-  conversation.caseId,
-);
+  const caseContext = await getCaseContext(
+    conversation.caseId,
+  );
 
-const aiCaseContext = buildCaseContextForAI(
-  caseContext,
-);
+  const aiCaseContext = buildCaseContextForAI(
+    caseContext,
+  );
 
   /*
    * --------------------------------------------------
@@ -187,13 +247,13 @@ const aiCaseContext = buildCaseContextForAI(
    * should go to Gemini, use a fallback, or follow
    * the crisis path.
    */
-const aiResponse = await orchestrateAI({
-  messages: aiMessages,
-  safetyResult,
-  ...(aiCaseContext
-    ? { caseContext: aiCaseContext }
-    : {}),
-});
+  const aiResponse = await orchestrateAI({
+    messages: aiMessages,
+    safetyResult,
+    ...(aiCaseContext
+      ? { caseContext: aiCaseContext }
+      : {}),
+  });
 
   /*
    * --------------------------------------------------
@@ -218,6 +278,20 @@ const aiResponse = await orchestrateAI({
   await updateConversationLastMessageAt(
     conversationObjectId,
     assistantMessageTime,
+  );
+
+  /*
+   * --------------------------------------------------
+   * CASE-CONTEXT EXTRACTION
+   * --------------------------------------------------
+   *
+   * This runs only after the assistant message is saved.
+   * Extraction failures must not break the main response.
+   */
+  await updateCaseContextSafely(
+    conversation.caseId,
+    aiMessages,
+    aiResponse.provider,
   );
 
   /*
@@ -280,12 +354,12 @@ export async function createAnonymousMessage(
   );
 
   await persistSafetyEvent({
-  conversationId: conversationObjectId,
-  caseId: conversation.caseId,
-  ownerType: "anonymous",
-  anonymousId,
-  safetyResult,
-});
+    conversationId: conversationObjectId,
+    caseId: conversation.caseId,
+    ownerType: "anonymous",
+    anonymousId,
+    safetyResult,
+  });
 
   /*
    * --------------------------------------------------
@@ -317,38 +391,42 @@ export async function createAnonymousMessage(
    * --------------------------------------------------
    */
 
-const recentMessages = await listMessagesByConversationId(
-  conversationObjectId,
-  MESSAGE_CONSTANTS.MAX_AI_CONTEXT_MESSAGES,
-  0,
-);
+  const recentMessages = await listMessagesByConversationId(
+    conversationObjectId,
+    MESSAGE_CONSTANTS.MAX_AI_CONTEXT_MESSAGES,
+    0,
+  );
 
-const contextMessages = buildAIMessageContext(recentMessages);
+  const contextMessages = buildAIMessageContext(
+    recentMessages,
+  );
 
-const aiMessages = toAIMessages(
-  contextMessages,
-);
+  const aiMessages = toAIMessages(
+    contextMessages,
+  );
 
-const caseContext = await getCaseContext(
-  conversation.caseId,
-);
+  const caseContext = await getCaseContext(
+    conversation.caseId,
+  );
 
-const aiCaseContext = buildCaseContextForAI(
-  caseContext,
-);
+  const aiCaseContext = buildCaseContextForAI(
+    caseContext,
+  );
+
   /*
    * --------------------------------------------------
    * AI ORCHESTRATION
    * --------------------------------------------------
    */
 
-const aiResponse = await orchestrateAI({
-  messages: aiMessages,
-  safetyResult,
-  ...(aiCaseContext
-    ? { caseContext: aiCaseContext }
-    : {}),
-});
+  const aiResponse = await orchestrateAI({
+    messages: aiMessages,
+    safetyResult,
+    ...(aiCaseContext
+      ? { caseContext: aiCaseContext }
+      : {}),
+  });
+
   /*
    * --------------------------------------------------
    * ASSISTANT MESSAGE
@@ -372,6 +450,17 @@ const aiResponse = await orchestrateAI({
   await updateConversationLastMessageAt(
     conversationObjectId,
     assistantMessageTime,
+  );
+
+  /*
+   * --------------------------------------------------
+   * CASE-CONTEXT EXTRACTION
+   * --------------------------------------------------
+   */
+  await updateCaseContextSafely(
+    conversation.caseId,
+    aiMessages,
+    aiResponse.provider,
   );
 
   return createdAssistantMessage;

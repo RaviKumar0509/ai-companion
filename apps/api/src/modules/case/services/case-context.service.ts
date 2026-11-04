@@ -6,7 +6,10 @@ import {
   updateCaseContext as updateCaseContextRepository,
 } from "../repositories/case-context.repository.js";
 
-import type { UpdateCaseContextInput } from "../schemas/case-context.schemas.js";
+import {
+  updateCaseContextSchema,
+  type UpdateCaseContextInput,
+} from "../schemas/case-context.schemas.js";
 
 import {
   CASE_CONTEXT_STATUS,
@@ -46,5 +49,29 @@ export async function updateCaseContextData(
   caseId: ObjectId,
   updates: UpdateCaseContextInput,
 ): Promise<boolean> {
-  return updateCaseContextRepository(caseId, updates, new Date());
+  const validatedUpdates = updateCaseContextSchema.parse(updates);
+
+  const hasContextData = Object.values(validatedUpdates).some(
+    (value) => value !== undefined,
+  );
+
+  if (!hasContextData) {
+    return false;
+  }
+
+  const existingContext = await getCaseContext(caseId);
+
+  if (!existingContext) {
+    return false;
+  }
+
+  const shouldActivate =
+    existingContext.status === CASE_CONTEXT_STATUS.EMPTY;
+
+  return updateCaseContextRepository(
+    caseId,
+    validatedUpdates,
+    new Date(),
+    shouldActivate ? CASE_CONTEXT_STATUS.ACTIVE : undefined,
+  );
 }
