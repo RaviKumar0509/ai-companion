@@ -1,3 +1,4 @@
+
 import type { Server } from "node:http";
 
 import { logger } from "../infrastructure/logger/logger.js";
@@ -11,7 +12,17 @@ import {
 
 import { startServer } from "../server.js";
 
+import {
+  startEscalationRecoveryWorker,
+} from "../modules/safety/workers/escalation-recovery.worker.js";
+
 let server: Server | null = null;
+
+let escalationRecoveryWorker:
+  | ReturnType<typeof startEscalationRecoveryWorker>
+  | null = null;
+
+let isShuttingDown = false;
 
 async function bootstrap(): Promise<void> {
   logger.info(
@@ -26,8 +37,7 @@ async function bootstrap(): Promise<void> {
     "1. Connecting database...",
   );
 
-  const database =
-    await connectDatabase();
+  const database = await connectDatabase();
 
   setDatabase(database);
 
@@ -44,19 +54,48 @@ async function bootstrap(): Promise<void> {
   server = startServer();
 
   logger.info(
-    "4. Application startup completed",
+    "4. Starting escalation recovery worker...",
+  );
+
+  escalationRecoveryWorker =
+    startEscalationRecoveryWorker();
+
+  logger.info(
+    "5. Application startup completed",
   );
 }
 
 async function shutdown(
   signal: string,
 ): Promise<void> {
+  if (isShuttingDown) {
+    return;
+  }
+
+  isShuttingDown = true;
+
   logger.info(
     { signal },
     "Shutdown signal received",
   );
 
   try {
+    // 1. Stop the recovery worker first.
+    if (escalationRecoveryWorker) {
+      logger.info(
+        "Stopping escalation recovery worker...",
+      );
+
+      await escalationRecoveryWorker.stop();
+
+      escalationRecoveryWorker = null;
+
+      logger.info(
+        "Escalation recovery worker stopped",
+      );
+    }
+
+    // 2. Close the HTTP server.
     if (server) {
       logger.info(
         "Closing HTTP server...",
@@ -75,11 +114,14 @@ async function shutdown(
         },
       );
 
+      server = null;
+
       logger.info(
         "HTTP server closed",
       );
     }
 
+    // 3. Close MongoDB after all active processing stops.
     logger.info(
       "Closing MongoDB connection...",
     );
@@ -98,7 +140,10 @@ async function shutdown(
   } catch (error: unknown) {
     logger.fatal(
       {
-        error,
+        errorName:
+          error instanceof Error
+            ? error.name
+            : "UnknownError",
       },
       "Application shutdown failed",
     );
@@ -125,9 +170,12 @@ bootstrap().catch(
   (error: unknown) => {
     logger.fatal(
       {
-        error,
+        errorName:
+          error instanceof Error
+            ? error.name
+            : "UnknownError",
       },
-      "❌ Application bootstrap failed",
+      "Application bootstrap failed",
     );
 
     process.exit(1);

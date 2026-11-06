@@ -36,4 +36,16 @@ export const SAFETY_EVENT_INDEXES = [
     name: "safety_events_anonymous_created",
     sparse: true,
   },
+  {
+    key: {
+      "escalationRecovery.status": 1,
+      "escalationRecovery.nextAttemptAt": 1,
+      createdAt: 1,
+    },
+    name: "safety_events_escalation_recovery",
+    partialFilterExpression: {
+      action: "crisis",
+      riskLevel: "high",
+    },
+  },
 ] as const;

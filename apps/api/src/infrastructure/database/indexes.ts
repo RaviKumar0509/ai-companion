@@ -28,6 +28,10 @@ import {
 
 import { CASE_CONTEXT_INDEXES } from "../../modules/case/repositories/case-context.indexes.js";
 
+import {
+  ESCALATION_INDEXES,
+} from "../../modules/safety/repositories/escalation.indexes.js";
+
 export async function ensureIndexes(): Promise<void> {
   const db =
     getDatabase();
@@ -158,6 +162,10 @@ await db
         name: "auth_sessions_expiration",
       },
     );
+
+    await db
+  .collection("escalations")
+  .createIndexes([...ESCALATION_INDEXES]);
 
       await db
     .collection("anonymousIdentities")

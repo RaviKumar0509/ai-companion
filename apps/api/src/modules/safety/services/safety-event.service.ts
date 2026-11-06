@@ -14,11 +14,15 @@ import {
 
 
 import {
+  ESCALATION_RECOVERY_STATUS,
+  SAFETY_ACTION,
   SAFETY_EVENT_SOURCE,
+  SAFETY_RISK_LEVEL,
   type SafetyEventDocument,
   type SafetyEventSource,
   type SafetyResult,
 } from "../types/safety.types.js";
+
 
 export interface PersistSafetyEventInput {
   conversationId: ObjectId;
@@ -60,6 +64,18 @@ export async function persistSafetyEvent(
     action: input.safetyResult.action,
     source: input.source ?? SAFETY_EVENT_SOURCE.MESSAGE,
     createdAt: now,
+
+    ...(input.safetyResult.action === SAFETY_ACTION.CRISIS &&
+    input.safetyResult.riskLevel === SAFETY_RISK_LEVEL.HIGH
+      ? {
+          escalationRecovery: {
+            status: ESCALATION_RECOVERY_STATUS.PENDING,
+            attempts: 0,
+            nextAttemptAt: now,
+            updatedAt: now,
+          },
+        }
+      : {}),
   };
 
   if (input.ownerType === "user" && input.userId) {

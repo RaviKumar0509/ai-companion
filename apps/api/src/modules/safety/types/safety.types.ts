@@ -42,6 +42,27 @@ export const SAFETY_EVENT_SOURCE = {
 export type SafetyEventSource =
   (typeof SAFETY_EVENT_SOURCE)[keyof typeof SAFETY_EVENT_SOURCE];
 
+export const ESCALATION_RECOVERY_STATUS = {
+  PENDING: "pending",
+  PROCESSING: "processing",
+  COMPLETED: "completed",
+  DEAD_LETTER: "dead_letter",
+} as const;
+
+export type EscalationRecoveryStatus =
+  (typeof ESCALATION_RECOVERY_STATUS)[keyof typeof ESCALATION_RECOVERY_STATUS];
+
+export interface EscalationRecoveryState {
+  status: EscalationRecoveryStatus;
+  attempts: number;
+  nextAttemptAt: Date;
+  leaseUntil?: Date;
+  leaseToken?: string;
+  lastErrorName?: string;
+  completedAt?: Date;
+  updatedAt: Date;
+}
+
 export interface SafetyEventDocument {
   _id?: ObjectId;
 
@@ -52,6 +73,8 @@ export interface SafetyEventDocument {
 
   userId?: ObjectId;
   anonymousId?: string;
+  escalationDelivery?: EscalationDeliveryState;
+  escalationRecovery?: EscalationRecoveryState;
 
   riskLevel: SafetyRiskLevel;
   category: SafetyCategory;
@@ -61,4 +84,24 @@ export interface SafetyEventDocument {
 
   createdAt: Date;
   resolvedAt?: Date;
+}
+
+export const ESCALATION_DELIVERY_STATUS = {
+  PENDING: "pending",
+  PROCESSING: "processing",
+  COMPLETED: "completed",
+  DEAD_LETTER: "dead_letter",
+} as const;
+
+export type EscalationDeliveryStatus =
+  (typeof ESCALATION_DELIVERY_STATUS)[keyof typeof ESCALATION_DELIVERY_STATUS];
+
+export interface EscalationDeliveryState {
+  status: EscalationDeliveryStatus;
+  attempts: number;
+  nextAttemptAt: Date;
+  leaseUntil?: Date;
+  lastErrorName?: string;
+  completedAt?: Date;
+  updatedAt: Date;
 }

@@ -78,6 +78,10 @@ import {
   buildAIMessageContext,
 } from "./message-context.service.js";
 
+import {
+  createEscalationForSafetyEvent,
+} from "../../safety/services/escalation.service.js";
+
 /**
  * These provider labels indicate that the assistant did not return a normal
  * AI-generated conversational answer. Do not extract recovery context from
@@ -177,13 +181,29 @@ export async function createUserMessage(
     input.content,
   );
 
-  await persistSafetyEvent({
-    conversationId: conversationObjectId,
-    caseId: conversation.caseId,
-    ownerType: "user",
-    userId: userObjectId,
-    safetyResult,
-  });
+const safetyEvent = await persistSafetyEvent({
+  conversationId: conversationObjectId,
+  caseId: conversation.caseId,
+  ownerType: "user",
+  userId: userObjectId,
+  safetyResult,
+});
+
+try {
+  await createEscalationForSafetyEvent(safetyEvent);
+} catch (error: unknown) {
+  logger.error(
+    {
+      errorName:
+        error instanceof Error
+          ? error.name
+          : "UnknownError",
+      safetyEventId: safetyEvent._id?.toHexString(),
+      operation: "create-crisis-escalation",
+    },
+    "Crisis escalation creation failed",
+  );
+}
 
   /*
    * --------------------------------------------------
@@ -353,13 +373,29 @@ export async function createAnonymousMessage(
     input.content,
   );
 
-  await persistSafetyEvent({
-    conversationId: conversationObjectId,
-    caseId: conversation.caseId,
-    ownerType: "anonymous",
-    anonymousId,
-    safetyResult,
-  });
+const safetyEvent = await persistSafetyEvent({
+  conversationId: conversationObjectId,
+  caseId: conversation.caseId,
+  ownerType: "anonymous",
+  anonymousId,
+  safetyResult,
+});
+
+try {
+  await createEscalationForSafetyEvent(safetyEvent);
+} catch (error: unknown) {
+  logger.error(
+    {
+      errorName:
+        error instanceof Error
+          ? error.name
+          : "UnknownError",
+      safetyEventId: safetyEvent._id?.toHexString(),
+      operation: "create-crisis-escalation",
+    },
+    "Anonymous crisis escalation creation failed",
+  );
+}
 
   /*
    * --------------------------------------------------
