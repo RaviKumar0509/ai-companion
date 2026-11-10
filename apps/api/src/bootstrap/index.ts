@@ -16,10 +16,18 @@ import {
   startEscalationRecoveryWorker,
 } from "../modules/safety/workers/escalation-recovery.worker.js";
 
+import {
+  startNotificationDeliveryWorker,
+} from "../modules/notification/workers/notification-delivery.worker.js";
+
 let server: Server | null = null;
 
 let escalationRecoveryWorker:
   | ReturnType<typeof startEscalationRecoveryWorker>
+  | null = null;
+
+let notificationDeliveryWorker:
+  | ReturnType<typeof startNotificationDeliveryWorker>
   | null = null;
 
 let isShuttingDown = false;
@@ -61,7 +69,14 @@ async function bootstrap(): Promise<void> {
     startEscalationRecoveryWorker();
 
   logger.info(
-    "5. Application startup completed",
+    "5. Starting notification delivery worker...",
+  );
+
+  notificationDeliveryWorker =
+    startNotificationDeliveryWorker();
+
+  logger.info(
+    "6. Application startup completed",
   );
 }
 
@@ -80,7 +95,7 @@ async function shutdown(
   );
 
   try {
-    // 1. Stop the recovery worker first.
+    // 1. Stop escalation recovery worker.
     if (escalationRecoveryWorker) {
       logger.info(
         "Stopping escalation recovery worker...",
@@ -95,7 +110,22 @@ async function shutdown(
       );
     }
 
-    // 2. Close the HTTP server.
+    // 2. Stop notification delivery worker.
+    if (notificationDeliveryWorker) {
+      logger.info(
+        "Stopping notification delivery worker...",
+      );
+
+      await notificationDeliveryWorker.stop();
+
+      notificationDeliveryWorker = null;
+
+      logger.info(
+        "Notification delivery worker stopped",
+      );
+    }
+
+    // 3. Close HTTP server.
     if (server) {
       logger.info(
         "Closing HTTP server...",
@@ -121,7 +151,7 @@ async function shutdown(
       );
     }
 
-    // 3. Close MongoDB after all active processing stops.
+    // 4. Close MongoDB after background processing stops.
     logger.info(
       "Closing MongoDB connection...",
     );

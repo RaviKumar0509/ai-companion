@@ -21,6 +21,8 @@ const mocks = vi.hoisted(() => ({
   retrySafetyEventEscalation: vi.fn(),
   deadLetterSafetyEventEscalation: vi.fn(),
   deadLetterExhaustedSafetyEscalations: vi.fn(),
+
+  createNotificationForEscalation: vi.fn(),
 }));
 
 vi.mock("../repositories/escalation.repository.js", () => ({
@@ -44,6 +46,14 @@ vi.mock("../repositories/safety.repository.js", () => ({
   deadLetterExhaustedSafetyEscalations:
     mocks.deadLetterExhaustedSafetyEscalations,
 }));
+
+vi.mock(
+  "../../notification/services/notification.service.js",
+  () => ({
+    createNotificationForEscalation:
+      mocks.createNotificationForEscalation,
+  }),
+);
 
 const safetyEventId = new ObjectId();
 const caseId = new ObjectId();
@@ -110,12 +120,16 @@ describe("escalation service", () => {
       }),
     );
 
+    mocks.createNotificationForEscalation.mockResolvedValue(
+      undefined,
+    );
+
     mocks.completeSafetyEventEscalation.mockResolvedValue(true);
     mocks.retrySafetyEventEscalation.mockResolvedValue(true);
     mocks.deadLetterSafetyEventEscalation.mockResolvedValue(true);
   });
 
-  it("creates and completes a claimed high-risk escalation", async () => {
+  it("creates escalation, persists notification, and completes recovery", async () => {
     const result =
       await processSafetyEventEscalationNow(safetyEventId);
 
@@ -123,11 +137,33 @@ describe("escalation service", () => {
 
     expect(mocks.createEscalation).toHaveBeenCalledTimes(1);
 
-    expect(mocks.completeSafetyEventEscalation).toHaveBeenCalledWith(
+    expect(
+      mocks.createNotificationForEscalation,
+    ).toHaveBeenCalledTimes(1);
+
+    expect(
+      mocks.createNotificationForEscalation,
+    ).toHaveBeenCalledWith(result);
+
+    expect(
+      mocks.completeSafetyEventEscalation,
+    ).toHaveBeenCalledWith(
       safetyEventId,
       "test-lease-token",
       expect.any(Date),
     );
+
+    // Notification persistence must happen before recovery completion.
+const notificationOrder =
+  mocks.createNotificationForEscalation.mock.invocationCallOrder[0];
+
+const completionOrder =
+  mocks.completeSafetyEventEscalation.mock.invocationCallOrder[0];
+
+expect(notificationOrder).toBeDefined();
+expect(completionOrder).toBeDefined();
+
+expect(notificationOrder!).toBeLessThan(completionOrder!);
 
     expect(mocks.retrySafetyEventEscalation).not.toHaveBeenCalled();
   });
@@ -140,6 +176,37 @@ describe("escalation service", () => {
     await expect(
       processSafetyEventEscalationNow(safetyEventId),
     ).rejects.toThrow("DatabaseUnavailable");
+
+    expect(mocks.createNotificationForEscalation).not.toHaveBeenCalled();
+
+    expect(mocks.retrySafetyEventEscalation).toHaveBeenCalledWith(
+      safetyEventId,
+      "test-lease-token",
+      expect.any(Date),
+      "Error",
+      expect.any(Date),
+    );
+  });
+
+  it("schedules a retry when notification persistence fails", async () => {
+    mocks.createNotificationForEscalation.mockRejectedValueOnce(
+      new Error("NotificationPersistenceFailed"),
+    );
+
+    await expect(
+      processSafetyEventEscalationNow(safetyEventId),
+    ).rejects.toThrow("NotificationPersistenceFailed");
+
+    expect(mocks.createEscalation).toHaveBeenCalledTimes(1);
+
+    expect(
+      mocks.createNotificationForEscalation,
+    ).toHaveBeenCalledTimes(1);
+
+    // Recovery must not be completed if notification persistence fails.
+    expect(
+      mocks.completeSafetyEventEscalation,
+    ).not.toHaveBeenCalled();
 
     expect(mocks.retrySafetyEventEscalation).toHaveBeenCalledWith(
       safetyEventId,
@@ -180,6 +247,10 @@ describe("escalation service", () => {
     await expect(
       processSafetyEventEscalationNow(safetyEventId),
     ).rejects.toThrow("lease ownership lost or expired");
+
+    expect(
+      mocks.createNotificationForEscalation,
+    ).toHaveBeenCalledTimes(1);
 
     expect(mocks.retrySafetyEventEscalation).toHaveBeenCalled();
   });

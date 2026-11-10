@@ -31,6 +31,9 @@ import { CASE_CONTEXT_INDEXES } from "../../modules/case/repositories/case-conte
 import {
   ESCALATION_INDEXES,
 } from "../../modules/safety/repositories/escalation.indexes.js";
+import {
+  NOTIFICATION_INDEXES,
+} from "../../modules/notification/repositories/notification.indexes.js";
 
 export async function ensureIndexes(): Promise<void> {
   const db =
@@ -184,6 +187,16 @@ await db
   await db
   .collection("safety_events")
   .createIndexes([...SAFETY_EVENT_INDEXES]);
+
+    /*
+   * --------------------------------------------------
+   * NOTIFICATION DELIVERY
+   * --------------------------------------------------
+   */
+
+  await db
+    .collection("notifications")
+    .createIndexes([...NOTIFICATION_INDEXES]);
 
   await getDatabase()
   .collection("case_contexts")

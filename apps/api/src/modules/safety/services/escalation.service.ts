@@ -28,6 +28,8 @@ import {
   retrySafetyEventEscalation,
 } from "../repositories/safety.repository.js";
 
+import { createNotificationForEscalation } from "../../notification/services/notification.service.js";
+
 // --------------------------------------------------
 // RECOVERY CONFIGURATION
 // --------------------------------------------------
@@ -172,6 +174,8 @@ async function processClaimedSafetyEvent(
         "Expected a crisis escalation but none was created.",
       );
     }
+
+    await createNotificationForEscalation(escalation);
 
     const completed = await completeSafetyEventEscalation(
       safetyEventId,
