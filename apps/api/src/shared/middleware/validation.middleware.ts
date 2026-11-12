@@ -59,22 +59,35 @@ export function validateBody(
   };
 }
 
+
 export function validateQuery<T extends z.ZodType>(
   schema: T,
 ): RequestHandler {
-  return (req, _res, next) => {
+  return (req, res, next) => {
     const result = schema.safeParse(req.query);
 
     if (!result.success) {
-      next(
-        new ValidationError(
-          "Invalid query parameters.",
-        ),
+      const issues = result.error.issues.map(
+        (issue) => ({
+          path: issue.path,
+          message: issue.message,
+          code: issue.code,
+        }),
       );
+
+      const error = new ValidationError(
+        "Invalid query parameters.",
+      );
+
+      Object.assign(error, {
+        details: issues,
+      });
+
+      next(error);
       return;
     }
 
-    Object.assign(req.query, result.data);
+    res.locals.validatedQuery = result.data;
 
     next();
   };

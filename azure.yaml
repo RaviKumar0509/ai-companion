@@ -1,0 +1,37 @@
+name: ai-companion-platform
+
+infra:
+  provider: terraform
+  path: infra
+
+services:
+  api:
+    project: ./apps/api
+    language: js
+    host: appservice
+    hooks:
+      prepackage:
+        shell: pwsh
+        run: |
+          pnpm install --frozen-lockfile
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pnpm run build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+  web:
+    project: ./apps/web
+    dist: dist
+    language: js
+    host: staticwebapp
+    hooks:
+      prepackage:
+        shell: pwsh
+        run: |
+          $apiUrl = (azd env get-value API_URL).Trim()
+          if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($apiUrl)) {
+            throw "API_URL is missing from the AZD environment. Provision the Terraform infrastructure first."
+          }
+          $env:VITE_API_BASE_URL = "$($apiUrl.TrimEnd('/'))/api/v1"
+          pnpm install --lockfile=false
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pnpm run build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

@@ -21,3 +21,7 @@ export {
 export {
   InvalidCredentialsError,
 } from "./InvalidCredentialsError.js";
+
+export {
+  ForbiddenError,
+} from "./ForbiddenError.js";

@@ -14,6 +14,19 @@ import {
 
 const COLLECTION_NAME = "escalations";
 
+export interface EscalationPaginationResult {
+  items: EscalationDocument[];
+  total: number;
+}
+
+export interface ListEscalationsOptions {
+  limit: number;
+  skip: number;
+  status?: EscalationStatus;
+  assignedTo?: ObjectId;
+  includeAll: boolean;
+}
+
 function getEscalationCollection() {
   return getDatabase().collection<EscalationDocument>(
     COLLECTION_NAME,
@@ -72,4 +85,58 @@ export async function listEscalationsByStatus(
     .skip(skip)
     .limit(limit)
     .toArray();
+}
+
+/**
+ * Lists escalations using role-aware filtering.
+ *
+ * Clinicians:
+ * Only escalations assigned to their user ID.
+ *
+ * Administrators:
+ * All escalations.
+ */
+export async function listEscalations(
+  options: ListEscalationsOptions,
+): Promise<EscalationPaginationResult> {
+  const collection = getEscalationCollection();
+
+  const filter: {
+    status?: EscalationStatus;
+    assignedTo?: ObjectId;
+  } = {};
+
+  if (options.status) {
+    filter.status = options.status;
+  }
+
+  if (!options.includeAll) {
+    if (!options.assignedTo) {
+      return {
+        items: [],
+        total: 0,
+      };
+    }
+
+    filter.assignedTo = options.assignedTo;
+  }
+
+  const [items, total] = await Promise.all([
+    collection
+      .find(filter)
+      .sort({
+        createdAt: -1,
+        _id: -1,
+      })
+      .skip(options.skip)
+      .limit(options.limit)
+      .toArray(),
+
+    collection.countDocuments(filter),
+  ]);
+
+  return {
+    items,
+    total,
+  };
 }

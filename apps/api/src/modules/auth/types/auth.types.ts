@@ -1,10 +1,13 @@
+
 import type {
+  UserRole,
   UserStatus,
 } from "./user.types.js";
 
 export interface PublicUser {
   id: string;
   email: string;
+  role: UserRole;
   status: UserStatus;
   emailVerified: boolean;
   createdAt: Date;

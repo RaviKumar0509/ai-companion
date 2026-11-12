@@ -22,11 +22,15 @@ import {
   SESSION_STATUS,
 } from "../../modules/auth/types/session.types.js";
 
-export interface AuthenticatedRequest
-  extends Request {
+import type {
+  UserRole,
+} from "../../modules/auth/types/user.types.js";
+
+export interface AuthenticatedRequest extends Request {
   auth?: {
     userId: string;
     sessionId: string;
+    role?: UserRole;
   };
 }
 

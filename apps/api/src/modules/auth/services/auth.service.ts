@@ -1,3 +1,4 @@
+
 import {
   MongoServerError,
 } from "mongodb";
@@ -31,6 +32,7 @@ import type {
 } from "../schemas/auth.schemas.js";
 
 import {
+  USER_ROLE,
   USER_STATUS,
 } from "../types/user.types.js";
 
@@ -74,21 +76,32 @@ export async function registerUser(
   /*
    * --------------------------------------------------
    * 3. Create the user.
+   *
+   * IMPORTANT:
+   * Public registration always assigns USER role.
+   * Privileged roles must be assigned through
+   * authorized administrative workflows.
    * --------------------------------------------------
    */
 
   try {
+    const now = new Date();
+
     const user =
       await createUser({
         email,
         passwordHash,
+
+        role:
+          USER_ROLE.USER,
+
         status:
           USER_STATUS.ACTIVE,
+
         emailVerified: false,
-        createdAt:
-          new Date(),
-        updatedAt:
-          new Date(),
+
+        createdAt: now,
+        updatedAt: now,
       });
 
     /*
@@ -109,6 +122,9 @@ export async function registerUser(
 
       email:
         user.email,
+
+      role:
+        user.role,
 
       status:
         user.status,
@@ -236,6 +252,7 @@ export async function loginUser(
     await createUserSession({
       userId:
         user._id,
+
       platform:
         "web",
     });
@@ -270,6 +287,9 @@ export async function loginUser(
 
       email:
         user.email,
+
+      role:
+        user.role,
 
       status:
         user.status,

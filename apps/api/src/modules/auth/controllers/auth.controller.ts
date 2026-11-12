@@ -299,6 +299,7 @@ export const meController = async (
       id: user._id!.toString(),
       email: user.email,
       status: user.status,
+      role: user.role,
       emailVerified:
         user.emailVerified,
       createdAt: user.createdAt,

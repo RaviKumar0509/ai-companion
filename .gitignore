@@ -1,0 +1,16 @@
+.copilot-azure/
+
+# Ignore local AZD environments while keeping the approved deployment plan.
+/.azure/*
+!/.azure/deployment-plan.md
+
+# Terraform working data and local state.
+/infra/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+!/infra/main.tfvars.json
